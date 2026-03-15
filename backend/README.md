@@ -31,7 +31,7 @@ JWT_SECRET=votre_secret_jwt
 FRONTEND_URL=http://localhost:5173
 ```
 
-> ⚠️ MongoDB doit être démarré avant de lancer le serveur.  
+> MongoDB doit être démarré avant de lancer le serveur.  
 > Sur WSL : `sudo mongod --dbpath /var/lib/mongodb`
 
 ---
