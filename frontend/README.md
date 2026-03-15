@@ -1,16 +1,62 @@
-# React + Vite
+# Akkor Hotel — Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Interface utilisateur React pour la plateforme de réservation d'hôtels Akkor Hotel.
 
-Currently, two official plugins are available:
+## Stack technique
+- **Framework** : React 19 + Vite
+- **Routing** : React Router v7
+- **HTTP** : Axios
+- **Auth** : JWT (jwt-decode)
+- **Tests** : Vitest + React Testing Library
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+---
 
-## React Compiler
+## Installation
+```bash
+npm install
+```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+---
 
-## Expanding the ESLint configuration
+## Démarrage
+```bash
+npm run dev
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+L'application sera disponible sur : [http://localhost:5173](http://localhost:5173)
+
+> ⚠️ Le backend doit tourner sur `http://localhost:3000`
+
+---
+
+## Tests
+```bash
+npm run test
+```
+
+---
+
+## Pages disponibles
+
+| Route | Description | Auth requise |
+|-------|-------------|--------------|
+| `/` | Liste des hôtels | Non |
+| `/hotels/:id` | Détail d'un hôtel + réservation | Non |
+| `/login` | Connexion | Non |
+| `/register` | Inscription | Non |
+| `/reservations` | Mes réservations | Oui |
+| `/profile` | Mon profil | Oui |
+| `/admin` | Gestion des hôtels | Admin uniquement |
+
+---
+
+## Fonctionnalités
+
+- Inscription et connexion avec JWT
+- Session persistée au rechargement de la page
+- Liste des hôtels avec tri et pagination
+- Réservation d'un hôtel avec choix des dates
+- Modification et suppression de ses réservations
+- Modification et suppression de son compte
+- Panel admin pour créer, modifier, supprimer des hôtels
+- Interface responsive (mobile + desktop)

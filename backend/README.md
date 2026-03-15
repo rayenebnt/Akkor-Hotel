@@ -14,42 +14,36 @@ API REST Node.js/Express pour la gestion d'hôtels et de réservations.
 ---
 
 ## Installation
-
 ```bash
 npm install
 ```
 
 Créer un fichier `.env` à partir du modèle :
-
 ```bash
 cp .env.example .env
 ```
 
 Contenu du `.env` :
-
 ```
 PORT=3000
-MONGODB_URI=mongodb://localhost:27017/akkor-hotel
+MONGODB_URI=mongodb://localhost:27017/akkor
 JWT_SECRET=votre_secret_jwt
 FRONTEND_URL=http://localhost:5173
 ```
 
+> ⚠️ MongoDB doit être démarré avant de lancer le serveur.  
+> Sur WSL : `sudo mongod --dbpath /var/lib/mongodb`
+
 ---
 
 ## Démarrage
-
 ```bash
-# Production
 npm start
-
-# Développement (avec nodemon)
-npm run dev
 ```
 
 ---
 
 ## Tests
-
 ```bash
 npm test
 ```
@@ -58,11 +52,22 @@ npm test
 
 ## Documentation API
 
-Une fois le serveur démarré, ouvrez : [http://localhost:3000/api-docs](http://localhost:3000/api-docs)
+Une fois le serveur démarré : [http://localhost:3000/api-docs](http://localhost:3000/api-docs)
 
 ---
 
-## Endpoints principaux
+## Créer un compte admin
+
+Après avoir créé un compte via l'interface, passer le rôle admin avec :
+```bash
+mongosh akkor --eval 'db.users.updateOne({email: "votre@email.com"}, {$set: {role: "admin"}})'
+```
+
+Se déconnecter et reconnecter pour que le nouveau rôle soit pris en compte.
+
+---
+
+## Endpoints
 
 | Méthode | Route | Auth | Description |
 |---------|-------|------|-------------|
@@ -81,3 +86,10 @@ Une fois le serveur démarré, ouvrez : [http://localhost:3000/api-docs](http://
 | PUT | /reservations/:id | User | Modifier une réservation |
 | DELETE | /reservations/:id | User | Supprimer une réservation |
 | GET | /reservations/search | Admin | Chercher par email/pseudo |
+
+---
+
+## CI/CD
+
+- **PR vers main** → lance les tests automatiquement
+- **Merge vers main** → Tests → Audit sécurité → Build → Deploy
