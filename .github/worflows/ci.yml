@@ -1,7 +1,6 @@
 name: Akkor Hotel CI Pipeline
 
 on:
-
   push:
     branches:
       - main
@@ -12,7 +11,6 @@ on:
 
 
 jobs:
-
   test:
 
     runs-on: ubuntu-latest
@@ -30,15 +28,21 @@ jobs:
 
 
       - name: Install dependencies
-        run: npm install
+        run: |
+          cd backend
+          npm install
 
 
       - name: Run tests
-        run: npm test
+        run: |
+          cd backend
+          npm test
 
 
       - name: Security audit
-        run: npm audit
+        run: |
+          cd backend
+          npm audit
 
 
       - name: Build step
