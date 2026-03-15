@@ -1,0 +1,18 @@
+import { defineConfig } from "vite"
+import react from "@vitejs/plugin-react"
+
+export default defineConfig({
+  plugins: [react()],
+  server: {
+    proxy: {
+      "/users": "http://localhost:3000",
+      "/hotels": "http://localhost:3000",
+      "/reservations": "http://localhost:3000",
+    }
+  },
+  test: {
+    environment: "jsdom",
+    globals: true,
+    setupFiles: "./src/__tests__/setup.js",
+  },
+})

@@ -1,21 +1,13 @@
-const Joi = require("joi")
-
-module.exports = (schema) => {
-
- return (req, res, next) => {
-
-  const { error } = schema.validate(req.body)
+module.exports = (schema) => (req, res, next) => {
+  const { error } = schema.validate(req.body, { abortEarly: false })
 
   if (error) {
-
-   return res.status(400).json({
-    error: error.details[0].message
-   })
-
+    const messages = error.details.map(d => d.message)
+    return res.status(400).json({
+      message: "Données invalides",
+      errors: messages
+    })
   }
 
   next()
-
- }
-
 }

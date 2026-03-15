@@ -1,17 +1,22 @@
 const router = require("express").Router()
 
 const controller = require("../controllers/hotelController")
+const auth       = require("../middlewares/auth")
+const admin      = require("../middlewares/admin")
+const validate   = require("../middlewares/validate")
 
-const auth = require("../middlewares/auth")
-const admin = require("../middlewares/admin")
+const {
+  createHotelSchema,
+  updateHotelSchema
+} = require("../validators/hotelValidator")
 
-// public
-router.get("/", controller.listHotels)
+// Public
+router.get("/",    controller.listHotels)
 router.get("/:id", controller.getHotel)
 
-// admin only
-router.post("/", auth, admin, controller.createHotel)
-router.put("/:id", auth, admin, controller.updateHotel)
+// Admin only
+router.post("/",    auth, admin, validate(createHotelSchema), controller.createHotel)
+router.put("/:id",  auth, admin, validate(updateHotelSchema), controller.updateHotel)
 router.delete("/:id", auth, admin, controller.deleteHotel)
 
 module.exports = router

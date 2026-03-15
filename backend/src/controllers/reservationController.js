@@ -1,137 +1,158 @@
 const Reservation = require("../models/Reservation")
-const User = require("../models/User")
+const Hotel       = require("../models/Hotel")
+const User        = require("../models/User")
+const mongoose    = require("mongoose")
 
-// CREATE reservation
+const isValidId = (id) => mongoose.Types.ObjectId.isValid(id)
+
+// ─── CREATE RESERVATION ────────────────────────────────
 exports.createReservation = async (req, res) => {
+  try {
+    const { hotelId, dateFrom, dateTo } = req.body
 
- try {
+    if (!isValidId(hotelId)) {
+      return res.status(400).json({ message: "ID hôtel invalide" })
+    }
 
-  const { hotelId, dateFrom, dateTo } = req.body
+    // Check hotel exists
+    const hotel = await Hotel.findById(hotelId)
+    if (!hotel) {
+      return res.status(404).json({ message: "Hôtel introuvable" })
+    }
 
-  if (!hotelId || !dateFrom || !dateTo) {
-   return res.status(400).json({
-    message: "hotelId, dateFrom and dateTo are required"
-   })
+    // Business rule: dateFrom < dateTo
+    if (new Date(dateFrom) >= new Date(dateTo)) {
+      return res.status(400).json({ message: "La date d'arrivée doit être avant la date de départ" })
+    }
+
+    const reservation = await Reservation.create({
+      userId: req.user.id,
+      hotelId,
+      dateFrom,
+      dateTo
+    })
+
+    const populated = await reservation.populate("hotelId")
+    return res.status(201).json(populated)
+  } catch (error) {
+    return res.status(500).json({ message: "Erreur serveur", error: error.message })
   }
-
-  if (new Date(dateFrom) >= new Date(dateTo)) {
-   return res.status(400).json({
-    message: "dateFrom must be before dateTo"
-   })
-  }
-
-  const reservation = await Reservation.create({
-   userId: req.user.id,
-   hotelId,
-   dateFrom,
-   dateTo
-  })
-
-  res.status(201).json(reservation)
-
- } catch (error) {
-
-  res.status(500).json({ message: error.message })
-
- }
 }
 
-// GET reservations for logged user
+// ─── GET MY RESERVATIONS ───────────────────────────────
 exports.getReservations = async (req, res) => {
+  try {
+    const reservations = await Reservation
+      .find({ userId: req.user.id })
+      .populate("hotelId")
+      .sort({ dateFrom: 1 })
 
- try {
-
-  const reservations = await Reservation.find({
-   userId: req.user.id
-  }).populate("hotelId")
-
-  res.json(reservations)
-
- } catch (error) {
-
-  res.status(500).json({ message: error.message })
-
- }
+    return res.json(reservations)
+  } catch (error) {
+    return res.status(500).json({ message: "Erreur serveur", error: error.message })
+  }
 }
 
-// UPDATE reservation
+// ─── UPDATE RESERVATION ────────────────────────────────
 exports.updateReservation = async (req, res) => {
+  try {
+    if (!isValidId(req.params.id)) {
+      return res.status(400).json({ message: "ID réservation invalide" })
+    }
 
- try {
+    const reservation = await Reservation.findById(req.params.id)
+    if (!reservation) {
+      return res.status(404).json({ message: "Réservation introuvable" })
+    }
 
-  const reservation = await Reservation.findById(req.params.id)
+    if (reservation.userId.toString() !== req.user.id && req.user.role !== "admin") {
+      return res.status(403).json({ message: "Accès interdit" })
+    }
 
-  if (!reservation) {
-   return res.status(404).json({ message: "Reservation not found" })
+    const { dateFrom, dateTo } = req.body
+
+    // Validate dates if provided
+    const newFrom = dateFrom ? new Date(dateFrom) : reservation.dateFrom
+    const newTo   = dateTo   ? new Date(dateTo)   : reservation.dateTo
+
+    if (newFrom >= newTo) {
+      return res.status(400).json({ message: "La date d'arrivée doit être avant la date de départ" })
+    }
+
+    const updated = await Reservation.findByIdAndUpdate(
+      req.params.id,
+      { dateFrom: newFrom, dateTo: newTo },
+      { new: true }
+    ).populate("hotelId")
+
+    return res.json(updated)
+  } catch (error) {
+    return res.status(500).json({ message: "Erreur serveur", error: error.message })
   }
-
-  if (reservation.userId.toString() !== req.user.id && req.user.role !== "admin") {
-   return res.status(403).json({ message: "Forbidden" })
-  }
-
-  const updatedReservation = await Reservation.findByIdAndUpdate(
-   req.params.id,
-   req.body,
-   { new: true }
-  )
-
-  res.json(updatedReservation)
-
- } catch (error) {
-
-  res.status(500).json({ message: error.message })
-
- }
 }
 
-// DELETE reservation
+// ─── DELETE RESERVATION ────────────────────────────────
 exports.deleteReservation = async (req, res) => {
+  try {
+    if (!isValidId(req.params.id)) {
+      return res.status(400).json({ message: "ID réservation invalide" })
+    }
 
- try {
+    const reservation = await Reservation.findById(req.params.id)
+    if (!reservation) {
+      return res.status(404).json({ message: "Réservation introuvable" })
+    }
 
-  const reservation = await Reservation.findById(req.params.id)
+    if (reservation.userId.toString() !== req.user.id && req.user.role !== "admin") {
+      return res.status(403).json({ message: "Accès interdit" })
+    }
 
-  if (!reservation) {
-   return res.status(404).json({ message: "Reservation not found" })
+    await Reservation.findByIdAndDelete(req.params.id)
+    return res.json({ message: "Réservation supprimée avec succès" })
+  } catch (error) {
+    return res.status(500).json({ message: "Erreur serveur", error: error.message })
   }
-
-  if (reservation.userId.toString() !== req.user.id && req.user.role !== "admin") {
-   return res.status(403).json({ message: "Forbidden" })
-  }
-
-  await Reservation.findByIdAndDelete(req.params.id)
-
-  res.json({ message: "Reservation deleted" })
-
- } catch (error) {
-
-  res.status(500).json({ message: error.message })
-
- }
 }
 
-// ADMIN search reservation by email
-exports.searchReservationByEmail = async (req, res) => {
+// ─── ADMIN: SEARCH BY EMAIL OR NAME ───────────────────
+exports.searchReservations = async (req, res) => {
+  try {
+    const { email, pseudo, id } = req.query
 
- try {
+    // Search by reservation ID directly
+    if (id) {
+      if (!isValidId(id)) {
+        return res.status(400).json({ message: "ID réservation invalide" })
+      }
+      const reservation = await Reservation.findById(id).populate("hotelId userId")
+      if (!reservation) {
+        return res.status(404).json({ message: "Réservation introuvable" })
+      }
+      return res.json([reservation])
+    }
 
-  const user = await User.findOne({
-   email: req.query.email
-  })
+    // Search user by email or pseudo
+    if (!email && !pseudo) {
+      return res.status(400).json({ message: "Paramètre email, pseudo ou id requis" })
+    }
 
-  if (!user) {
-   return res.status(404).json({ message: "User not found" })
+    const query = {}
+    if (email)  query.email  = email
+    if (pseudo) query.pseudo = new RegExp(pseudo, "i")
+
+    const user = await User.findOne(query)
+    if (!user) {
+      return res.status(404).json({ message: "Utilisateur introuvable" })
+    }
+
+    const reservations = await Reservation
+      .find({ userId: user._id })
+      .populate("hotelId")
+      .populate("userId")
+      .sort({ dateFrom: 1 })
+
+    return res.json(reservations)
+  } catch (error) {
+    return res.status(500).json({ message: "Erreur serveur", error: error.message })
   }
-
-  const reservations = await Reservation.find({
-   userId: user._id
-  }).populate("hotelId")
-
-  res.json(reservations)
-
- } catch (error) {
-
-  res.status(500).json({ message: error.message })
-
- }
 }

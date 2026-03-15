@@ -3,10 +3,16 @@ openapi: 3.0.0
 info:
   title: Akkor Hotel API
   version: 1.0.0
-  description: Hotel reservation API with JWT authentication
+  description: |
+    API REST pour la gestion d'hôtels et de réservations.
+    
+    **Authentification** : JWT Bearer Token.  
+    Obtenez un token via `POST /users/login` puis passez-le dans le header :  
+    `Authorization: Bearer <token>`
 
 servers:
   - url: http://localhost:3000
+    description: Serveur local
 
 components:
 
@@ -21,81 +27,207 @@ components:
     User:
       type: object
       properties:
-        id:
+        _id:
           type: string
+          example: "64a1234567890abcdef12345"
         email:
           type: string
+          example: "user@test.com"
         pseudo:
           type: string
+          example: "monpseudo"
         role:
           type: string
+          enum: [user, admin]
+          example: "user"
+        createdAt:
+          type: string
+          format: date-time
 
     Hotel:
       type: object
       properties:
-        id:
+        _id:
           type: string
         name:
           type: string
+          example: "Grand Hôtel Palace"
         location:
           type: string
+          example: "Paris, France"
         description:
           type: string
+          example: "Un hôtel de luxe au cœur de Paris"
         picture_list:
           type: array
           items:
             type: string
+            format: uri
+        createdAt:
+          type: string
+          format: date-time
 
     Reservation:
       type: object
       properties:
-        id:
+        _id:
           type: string
         userId:
           type: string
         hotelId:
-          type: string
+          $ref: "#/components/schemas/Hotel"
         dateFrom:
           type: string
           format: date
+          example: "2026-06-01"
         dateTo:
           type: string
           format: date
+          example: "2026-06-07"
+        createdAt:
+          type: string
+          format: date-time
+
+    Error:
+      type: object
+      properties:
+        message:
+          type: string
+        errors:
+          type: array
+          items:
+            type: string
 
 paths:
 
-# =========================
+# ═══════════════════════════════════════════
 # USERS
-# =========================
+# ═══════════════════════════════════════════
 
   /users/register:
     post:
-      summary: Register a new user
+      tags: [Users]
+      summary: Créer un nouveau compte
+      description: |
+        Accessible sans authentification.  
+        Le rôle est toujours `user` — impossible de s'auto-assigner `admin`.
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
+              required: [email, pseudo, password]
               properties:
                 email:
                   type: string
-                  example: user@test.com
+                  format: email
+                  example: "user@test.com"
                 pseudo:
                   type: string
-                  example: user
+                  minLength: 3
+                  maxLength: 30
+                  example: "monpseudo"
                 password:
                   type: string
-                  example: "123456"
+                  minLength: 6
+                  example: "motdepasse"
       responses:
         "201":
-          description: User created
+          description: Utilisateur créé (sans le mot de passe)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
         "400":
-          description: Invalid data
+          description: Données invalides
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: Email déjà utilisé
 
   /users/login:
     post:
-      summary: Login user
+      tags: [Users]
+      summary: Se connecter
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: "user@test.com"
+                password:
+                  type: string
+                  example: "motdepasse"
+      responses:
+        "200":
+          description: Token JWT retourné
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                  userId:
+                    type: string
+        "400":
+          description: Données invalides
+        "401":
+          description: Mot de passe incorrect
+        "404":
+          description: Utilisateur introuvable
+
+  /users/{id}:
+    get:
+      tags: [Users]
+      summary: Voir un profil utilisateur
+      description: Un utilisateur normal ne peut voir que son propre profil. Un admin peut voir n'importe quel profil.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Profil utilisateur (sans mot de passe)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Token requis
+        "403":
+          description: Accès interdit
+        "404":
+          description: Utilisateur introuvable
+
+    put:
+      tags: [Users]
+      summary: Modifier un profil
+      description: |
+        Un utilisateur peut modifier uniquement son propre profil.  
+        Un admin peut modifier n'importe quel utilisateur.  
+        Le champ `role` n'est pas modifiable via cet endpoint.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
       requestBody:
         required: true
         content:
@@ -105,51 +237,35 @@ paths:
               properties:
                 email:
                   type: string
-                  example: admin@test.com
+                  format: email
+                pseudo:
+                  type: string
+                  minLength: 3
                 password:
                   type: string
-                  example: "123456"
+                  minLength: 6
       responses:
         "200":
-          description: JWT token returned
+          description: Profil mis à jour
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          description: Données invalides
         "401":
-          description: Invalid credentials
-
-  /users/{id}:
-    get:
-      summary: Get user by id
-      security:
-        - bearerAuth: []
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: string
-      responses:
-        "200":
-          description: User found
+          description: Token requis
         "403":
-          description: Forbidden
-
-    put:
-      summary: Update user
-      security:
-        - bearerAuth: []
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: string
-      responses:
-        "200":
-          description: User updated
-        "403":
-          description: Forbidden
+          description: Accès interdit
+        "404":
+          description: Utilisateur introuvable
+        "409":
+          description: Email déjà utilisé
 
     delete:
-      summary: Delete user
+      tags: [Users]
+      summary: Supprimer un compte
+      description: Un utilisateur peut supprimer uniquement son propre compte. Un admin peut supprimer n'importe quel compte.
       security:
         - bearerAuth: []
       parameters:
@@ -160,115 +276,51 @@ paths:
             type: string
       responses:
         "200":
-          description: User deleted
+          description: Compte supprimé
+        "401":
+          description: Token requis
         "403":
-          description: Forbidden
+          description: Accès interdit
+        "404":
+          description: Utilisateur introuvable
 
-# =========================
+# ═══════════════════════════════════════════
 # HOTELS
-# =========================
+# ═══════════════════════════════════════════
 
   /hotels:
-
     get:
-      summary: List hotels
+      tags: [Hotels]
+      summary: Lister tous les hôtels
+      description: Endpoint public — aucune authentification requise.
       parameters:
         - in: query
           name: limit
           schema:
             type: integer
-            example: 10
+            default: 10
+            maximum: 100
+          description: Nombre de résultats (défaut 10, max 100)
         - in: query
           name: sort
           schema:
             type: string
-            example: name
+            enum: [name, location, createdAt, -createdAt]
+            default: name
+          description: Champ de tri
       responses:
         "200":
-          description: List of hotels
+          description: Liste des hôtels
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Hotel"
 
     post:
-      summary: Create hotel (admin only)
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/Hotel"
-      responses:
-        "201":
-          description: Hotel created
-        "403":
-          description: Admin access required
-
-  /hotels/{id}:
-
-    get:
-      summary: Get hotel by id
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: string
-      responses:
-        "200":
-          description: Hotel found
-        "404":
-          description: Hotel not found
-
-    put:
-      summary: Update hotel (admin only)
-      security:
-        - bearerAuth: []
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: string
-      responses:
-        "200":
-          description: Hotel updated
-        "403":
-          description: Admin required
-
-    delete:
-      summary: Delete hotel (admin only)
-      security:
-        - bearerAuth: []
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: string
-      responses:
-        "200":
-          description: Hotel deleted
-        "403":
-          description: Admin required
-
-# =========================
-# RESERVATIONS
-# =========================
-
-  /reservations:
-
-    get:
-      summary: Get reservations of logged user
-      security:
-        - bearerAuth: []
-      responses:
-        "200":
-          description: Reservation list
-        "401":
-          description: Unauthorized
-
-    post:
-      summary: Create reservation
+      tags: [Hotels]
+      summary: Créer un hôtel (admin uniquement)
       security:
         - bearerAuth: []
       requestBody:
@@ -277,28 +329,62 @@ paths:
           application/json:
             schema:
               type: object
+              required: [name, location]
               properties:
-                hotelId:
+                name:
                   type: string
-                  example: 64a123456789
-                dateFrom:
+                  example: "Grand Hôtel Palace"
+                location:
                   type: string
-                  format: date
-                  example: 2025-01-01
-                dateTo:
+                  example: "Paris, France"
+                description:
                   type: string
-                  format: date
-                  example: 2025-01-05
+                  example: "Un hôtel magnifique"
+                picture_list:
+                  type: array
+                  items:
+                    type: string
+                    format: uri
       responses:
         "201":
-          description: Reservation created
+          description: Hôtel créé
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Hotel"
+        "400":
+          description: Données invalides
         "401":
-          description: Unauthorized
+          description: Token requis
+        "403":
+          description: Admin requis
 
-  /reservations/{id}:
+  /hotels/{id}:
+    get:
+      tags: [Hotels]
+      summary: Détail d'un hôtel
+      description: Endpoint public — aucune authentification requise.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Hôtel trouvé
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Hotel"
+        "400":
+          description: ID invalide
+        "404":
+          description: Hôtel introuvable
 
     put:
-      summary: Update reservation
+      tags: [Hotels]
+      summary: Modifier un hôtel (admin uniquement)
       security:
         - bearerAuth: []
       parameters:
@@ -307,14 +393,39 @@ paths:
           required: true
           schema:
             type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                location:
+                  type: string
+                description:
+                  type: string
+                picture_list:
+                  type: array
+                  items:
+                    type: string
+                    format: uri
       responses:
         "200":
-          description: Reservation updated
+          description: Hôtel mis à jour
+        "400":
+          description: Données invalides
+        "401":
+          description: Token requis
         "403":
-          description: Forbidden
+          description: Admin requis
+        "404":
+          description: Hôtel introuvable
 
     delete:
-      summary: Delete reservation
+      tags: [Hotels]
+      summary: Supprimer un hôtel (admin uniquement)
       security:
         - bearerAuth: []
       parameters:
@@ -325,24 +436,175 @@ paths:
             type: string
       responses:
         "200":
-          description: Reservation deleted
+          description: Hôtel supprimé
+        "401":
+          description: Token requis
         "403":
-          description: Forbidden
+          description: Admin requis
+        "404":
+          description: Hôtel introuvable
+
+# ═══════════════════════════════════════════
+# RESERVATIONS
+# ═══════════════════════════════════════════
 
   /reservations/search:
     get:
-      summary: Admin search reservation by user email
+      tags: [Reservations]
+      summary: Rechercher des réservations (admin uniquement)
+      description: |
+        Permet à un admin de retrouver les réservations d'un utilisateur  
+        par son email, son pseudo, ou directement par l'ID de réservation.
       security:
         - bearerAuth: []
       parameters:
         - in: query
           name: email
+          schema:
+            type: string
+            format: email
+          description: Email de l'utilisateur
+        - in: query
+          name: pseudo
+          schema:
+            type: string
+          description: Pseudo de l'utilisateur (recherche partielle)
+        - in: query
+          name: id
+          schema:
+            type: string
+          description: ID direct de la réservation
+      responses:
+        "200":
+          description: Liste des réservations trouvées
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Reservation"
+        "400":
+          description: Paramètre manquant
+        "401":
+          description: Token requis
+        "403":
+          description: Admin requis
+        "404":
+          description: Utilisateur introuvable
+
+  /reservations:
+    get:
+      tags: [Reservations]
+      summary: Voir mes réservations
+      description: Retourne uniquement les réservations de l'utilisateur connecté.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Liste des réservations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Reservation"
+        "401":
+          description: Token requis
+
+    post:
+      tags: [Reservations]
+      summary: Créer une réservation
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [hotelId, dateFrom, dateTo]
+              properties:
+                hotelId:
+                  type: string
+                  example: "64a1234567890abcdef12345"
+                dateFrom:
+                  type: string
+                  format: date
+                  example: "2026-06-01"
+                dateTo:
+                  type: string
+                  format: date
+                  example: "2026-06-07"
+      responses:
+        "201":
+          description: Réservation créée
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Reservation"
+        "400":
+          description: Données invalides (dates incohérentes, champs manquants)
+        "401":
+          description: Token requis
+        "404":
+          description: Hôtel introuvable
+
+  /reservations/{id}:
+    put:
+      tags: [Reservations]
+      summary: Modifier une réservation
+      description: Un utilisateur peut modifier uniquement ses propres réservations. Un admin peut modifier n'importe quelle réservation.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
           required: true
           schema:
             type: string
-            example: user@test.com
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                dateFrom:
+                  type: string
+                  format: date
+                dateTo:
+                  type: string
+                  format: date
       responses:
         "200":
-          description: Reservation list
+          description: Réservation mise à jour
+        "400":
+          description: Dates invalides
+        "401":
+          description: Token requis
+        "403":
+          description: Accès interdit
         "404":
-          description: User not found
+          description: Réservation introuvable
+
+    delete:
+      tags: [Reservations]
+      summary: Supprimer une réservation
+      description: Un utilisateur peut supprimer uniquement ses propres réservations. Un admin peut supprimer n'importe quelle réservation.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Réservation supprimée
+        "401":
+          description: Token requis
+        "403":
+          description: Accès interdit
+        "404":
+          description: Réservation introuvable

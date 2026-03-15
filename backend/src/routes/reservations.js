@@ -1,17 +1,22 @@
 const router = require("express").Router()
 
 const controller = require("../controllers/reservationController")
+const auth       = require("../middlewares/auth")
+const admin      = require("../middlewares/admin")
+const validate   = require("../middlewares/validate")
 
-const auth = require("../middlewares/auth")
-const admin = require("../middlewares/admin")
+const {
+  createReservationSchema,
+  updateReservationSchema
+} = require("../validators/reservationValidator")
 
-// user routes
-router.get("/", auth, controller.getReservations)
-router.post("/", auth, controller.createReservation)
-router.put("/:id", auth, controller.updateReservation)
+// IMPORTANT: static route /search MUST be declared before /:id
+// otherwise Express will match "search" as an :id parameter
+router.get("/search", auth, admin, controller.searchReservations)
+
+router.get("/",       auth, controller.getReservations)
+router.post("/",      auth, validate(createReservationSchema), controller.createReservation)
+router.put("/:id",    auth, validate(updateReservationSchema), controller.updateReservation)
 router.delete("/:id", auth, controller.deleteReservation)
-
-// admin search
-router.get("/search", auth, admin, controller.searchReservationByEmail)
 
 module.exports = router
